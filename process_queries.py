@@ -1,56 +1,76 @@
 import pandas as pd
 import requests
-import time
-import multiprocessing
+from multiprocessing import Pool
 from tqdm import tqdm
+import multiprocessing
 
-DEFAULT_PROMPT = "Dis-moi s'il s'agit d'une requête d'export ou d'un autre type de demande."
 
-def query_ollama(prompt, base_url, model):
+
+def call_ollama(base_url, prompt, input_text, timeout=60):
+    """
+    Envoie une requête à une instance Ollama et retourne la réponse ou une erreur.
+    """
     try:
-        response = requests.post(f"{base_url}/api/generate", json={
-            "model": model,
-            "prompt": prompt,
-            "stream": False
-        }, timeout=60)
-        response.raise_for_status()
-        return response.json()["response"].strip()
-    except Exception as e:
-        print(f"[{base_url}] Erreur : {e}")
-        return "Erreur"
-
-def process_partition(partition_df, instance_url, return_dict, idx, model, base_prompt):
-    output = []
-    print(f"🟢 Début du traitement sur {instance_url} ({len(partition_df)} requêtes)")
-    for _, row in tqdm(partition_df.iterrows(), total=len(partition_df), desc=f"Instance {idx+1}", position=idx):
-        full_prompt = f"{row['query']}\n\n{base_prompt}"
-        response = query_ollama(full_prompt, instance_url, model)
-        output.append(response)
-        time.sleep(0.5)
-    partition_df = partition_df.copy()
-    partition_df["type_requete"] = output
-    return_dict[idx] = partition_df
-
-def process_csv(csv_path, output_path, model, instances, base_prompt=DEFAULT_PROMPT):
-    df = pd.read_csv(csv_path)
-    nb_instances = len(instances)
-    partitions = [df.iloc[i::nb_instances].copy() for i in range(nb_instances)]
-
-    manager = multiprocessing.Manager()
-    return_dict = manager.dict()
-    processes = []
-
-    for i, instance_url in enumerate(instances):
-        p = multiprocessing.Process(
-            target=process_partition,
-            args=(partitions[i], instance_url, return_dict, i, model, base_prompt)
+        response = requests.post(
+            f"{base_url}/api/generate",
+            json={
+                "model": "llama3",
+                "prompt": prompt,
+                "stream": False,
+                "messages": [
+                    {"role": "user", "content": input_text}
+                ]
+            },
+            timeout=timeout
         )
-        p.start()
-        processes.append(p)
+        response.raise_for_status()
+        return response.json()["response"]
+    except Exception as e:
+        return f"[{base_url}] Erreur : {e}"
 
-    for p in processes:
-        p.join()
 
-    df_final = pd.concat([return_dict[i] for i in range(nb_instances)]).sort_index()
-    df_final.to_csv(output_path, index=False, sep=";")
-    print(f"\n✅ Résultat final enregistré dans {output_path}")
+def process_queries(df, base_url, prompt, instance_index):
+    """
+    Traite les requêtes de la portion de DataFrame avec une instance Ollama donnée.
+    """
+    results = []
+    for i, row in enumerate(tqdm(df.itertuples(), total=len(df), desc=f"Instance {instance_index+1}")):
+        query = row.query
+        result = call_ollama(base_url, prompt, query)
+        results.append(result)
+    return results
+
+
+def split_dataframe(df, n):
+    """
+    Divise un DataFrame en n parties de taille (quasi-)égale.
+    """
+    return [df.iloc[i::n].copy().reset_index(drop=True) for i in range(n)]
+
+
+def process_all(df, prompt, base_urls):
+    """
+    Orchestration parallèle du traitement.
+    """
+    n = len(base_urls)
+    sub_dfs = split_dataframe(df, n)
+
+    print(f"📊 CSV divisé en {n} sous-ensembles. Lancement du traitement parallèle...\n")
+
+    args = [
+        (sub_dfs[i], base_urls[i], prompt, i)
+        for i in range(n)
+    ]
+
+    with Pool(processes=n) as pool:
+        results = pool.starmap(process_queries, args)
+
+    # Fusion des sous-ensembles de résultats
+    final_df = pd.concat([
+        sub_dfs[i].assign(type_requete=results[i])
+        for i in range(n)
+    ], ignore_index=True)
+
+    return final_df
+
+    multiprocessing.resource_tracker._resource_tracker.cleanup()
