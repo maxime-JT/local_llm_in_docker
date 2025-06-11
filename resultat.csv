@@ -1,4 +1,4 @@
 query,type_requete
-Peux-tu me sortir tous les emails de mars ?,[http://localhost:11434] Erreur : 500 Server Error: Internal Server Error for url: http://localhost:11434/api/generate
-Je veux savoir combien d'inscrits par jour,[http://localhost:11435] Erreur : 500 Server Error: Internal Server Error for url: http://localhost:11435/api/generate
-Export des inscrits avec email et téléphone,Je suis prêt !
+Peux-tu me sortir tous les emails de mars ?,export
+Je veux savoir combien d'inscrits par jour,autre
+Export des inscrits avec email et téléphone,export
