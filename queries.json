@@ -1,0 +1,17 @@
+[
+  {
+    "column": "query",
+    "prompt": "Indique si cette demande utilisateur correspond à une requête d'export de données ou à un autre type de demande. Réponds uniquement par 'export' ou 'autre'.",
+    "output_column": "export_or_other"
+  },
+  {
+    "column": "query",
+    "prompt": "Est-ce que cette demande semble urgente ? Réponds par 'oui' ou 'non'.",
+    "output_column": "urgency"
+  },
+  {
+    "column": "query",
+    "prompt": "S'agit-il d'une demande technique ? Réponds par 'oui' ou 'non'.",
+    "output_column": "technical"
+  }
+]

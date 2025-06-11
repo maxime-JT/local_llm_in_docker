@@ -1,4 +1,5 @@
-query,type_requete
-Peux-tu me sortir tous les emails de mars ?,export
-Je veux savoir combien d'inscrits par jour,autre
-Export des inscrits avec email et téléphone,export
+query,response_export_or_other,response_urgency,response_technical
+Peux-tu me sortir tous les emails de mars ?,export,non.,non.
+Je veux savoir combien d'inscrits par jour. Vite please.,autre,oui,non.
+Export des inscrits avec email et téléphone,export,non.,non.
+Donne moi rapidement la liste des job offers dont on dispose,export,non,non.
